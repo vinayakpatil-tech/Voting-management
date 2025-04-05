@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract SimpleVoting {
+    address private admin;
+    mapping(address => bool) public hasVoted;
+    mapping(uint256 => bool) public disqualifiedCandidates;
+    uint256 public constant VOTING_FEE_INR = 5;
+    uint256 public ethPriceInUsd; // Price of 1 ETH in USD
+
+    struct Candidate {
+        string name;
+        uint256 votes;
+        string constituency;
+        string partyName;
+        uint256 age;
+        string education;
+    }
+
+    Candidate[] public candidates;
+
+    event Voted(address indexed voter, uint256 candidateIndex);
+    event CandidateDisqualified(uint256 indexed candidateIndex);
+    event PricesUpdated(uint256 newEthPrice);
+    event CandidateAdded(string name, string constituency, string partyName, uint256 age, string education);
+    event FundsReceived(address sender, uint256 amount);
+
+    constructor(uint256 _ethPriceInUsd) {
+        require(_ethPriceInUsd > 0, "ETH price must be greater than zero");
+        admin = msg.sender;
+        ethPriceInUsd = _ethPriceInUsd;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin can perform this action");
+        _;
+    }
+
+    receive() external payable {
+        emit FundsReceived(msg.sender, msg.value);
+    }
+
+    function setPrice(uint256 _ethPriceInUsd) public onlyAdmin {
+        require(_ethPriceInUsd > 0, "Price must be greater than zero");
+        ethPriceInUsd = _ethPriceInUsd;
+        emit PricesUpdated(_ethPriceInUsd);
+    }
+
+    function addCandidate(
+        string memory _name, 
+        string memory _constituency, 
+        string memory _partyName, 
+        uint256 _age, 
+        string memory _education
+    ) public onlyAdmin {
+        candidates.push(Candidate(_name, 0, _constituency, _partyName, _age, _education));
+        emit CandidateAdded(_name, _constituency, _partyName, _age, _education);
+    }
+
+    function disqualifyCandidate(uint256 _candidateIndex) public onlyAdmin {
+        require(_candidateIndex < candidates.length, "Invalid candidate index");
+        require(!disqualifiedCandidates[_candidateIndex], "Candidate already disqualified");
+        disqualifiedCandidates[_candidateIndex] = true;
+        emit CandidateDisqualified(_candidateIndex);
+    }
+
+    /// Vote for a candidate by sending ETH equal to ₹5 in real-world value.
+    function vote(uint256 _candidateIndex) public payable {
+        require(!hasVoted[msg.sender], "You have already voted");
+        require(_candidateIndex < candidates.length, "Invalid candidate index");
+        require(!disqualifiedCandidates[_candidateIndex], "Candidate has been disqualified");
+        require(ethPriceInUsd > 0, "ETH price not set");
+
+        uint256 requiredEth = getRequiredEthForVoting();
+        require(msg.value >= requiredEth, "Insufficient ETH sent to vote");
+
+        hasVoted[msg.sender] = true;
+
+        // Forward ETH to admin
+        (bool success, ) = payable(admin).call{value: msg.value}("");
+        require(success, "ETH Transfer to admin failed");
+
+        candidates[_candidateIndex].votes++;
+        emit Voted(msg.sender, _candidateIndex);
+    }
+
+    /// Return how much ETH (in wei) the user should send to vote
+    function getRequiredEthForVoting() public view returns (uint256) {
+        // 1 USD = 83 INR (fixed), so we calculate based on USD
+        uint256 usdAmount = VOTING_FEE_INR * 1e18 / 83;
+        uint256 ethAmount = (usdAmount * 1e18) / (ethPriceInUsd * 1e18);
+        return ethAmount;
+    }
+
+    function getCandidates() public view returns (Candidate[] memory) {
+        return candidates;
+    }
+
+    function hasUserVoted(address _user) public view returns (bool) {
+        return hasVoted[_user];
+    }
+    function getWinner() public view returns (
+    string memory name,
+    uint256 votes,
+    string memory constituency,
+    string memory partyName,
+    uint256 age,
+    string memory education
+) {
+    require(candidates.length > 0, "No candidates available");
+
+    uint256 winningVoteCount = 0;
+    uint256 winnerIndex = 0;
+    bool found = false;
+
+    for (uint256 i = 0; i < candidates.length; i++) {
+        if (!disqualifiedCandidates[i] && candidates[i].votes > winningVoteCount) {
+            winningVoteCount = candidates[i].votes;
+            winnerIndex = i;
+            found = true;
+        }
+    }
+
+    require(found, "No eligible winner found");
+
+    Candidate memory winner = candidates[winnerIndex];
+    return (
+        winner.name,
+        winner.votes,
+        winner.constituency,
+        winner.partyName,
+        winner.age,
+        winner.education
+    );
+}
+function getRequiredEthForVotings() public view returns (uint256) {
+    uint256 usdAmount = (VOTING_FEE_INR * 1e18) / 83;
+    uint256 ethAmount = (usdAmount * 1e18) / (ethPriceInUsd * 1e18);
+    return ethAmount;
+}
+
+
+}
