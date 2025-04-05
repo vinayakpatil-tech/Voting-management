@@ -6,7 +6,7 @@ contract SimpleVoting {
     mapping(address => bool) public hasVoted;
     mapping(uint256 => bool) public disqualifiedCandidates;
     uint256 public constant VOTING_FEE_INR = 5;
-    uint256 public ethPriceInUsd; // Price of 1 ETH in USD
+    uint256 public ethPriceInUsd; 
 
     struct Candidate {
         string name;
@@ -64,7 +64,7 @@ contract SimpleVoting {
         emit CandidateDisqualified(_candidateIndex);
     }
 
-    /// Vote for a candidate by sending ETH equal to ₹5 in real-world value.
+    
     function vote(uint256 _candidateIndex) public payable {
         require(!hasVoted[msg.sender], "You have already voted");
         require(_candidateIndex < candidates.length, "Invalid candidate index");
@@ -76,7 +76,7 @@ contract SimpleVoting {
 
         hasVoted[msg.sender] = true;
 
-        // Forward ETH to admin
+        
         (bool success, ) = payable(admin).call{value: msg.value}("");
         require(success, "ETH Transfer to admin failed");
 
@@ -84,21 +84,13 @@ contract SimpleVoting {
         emit Voted(msg.sender, _candidateIndex);
     }
 
-    /// Return how much ETH (in wei) the user should send to vote
-    function getRequiredEthForVoting() public view returns (uint256) {
-        // 1 USD = 83 INR (fixed), so we calculate based on USD
-        uint256 usdAmount = VOTING_FEE_INR * 1e18 / 83;
-        uint256 ethAmount = (usdAmount * 1e18) / (ethPriceInUsd * 1e18);
-        return ethAmount;
-    }
+  
 
     function getCandidates() public view returns (Candidate[] memory) {
         return candidates;
     }
 
-    function hasUserVoted(address _user) public view returns (bool) {
-        return hasVoted[_user];
-    }
+   
     function getWinner() public view returns (
     string memory name,
     uint256 votes,
@@ -133,7 +125,7 @@ contract SimpleVoting {
         winner.education
     );
 }
-function getRequiredEthForVotings() public view returns (uint256) {
+function getRequiredEthForVoting() public view returns (uint256) {
     uint256 usdAmount = (VOTING_FEE_INR * 1e18) / 83;
     uint256 ethAmount = (usdAmount * 1e18) / (ethPriceInUsd * 1e18);
     return ethAmount;
